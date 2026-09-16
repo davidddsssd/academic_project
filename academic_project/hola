@@ -1,0 +1,55 @@
+# Evidencia de uso de Inteligencia Artificial 
+
+Proyecto: `academic_project`  
+Aplicacion: `academic`  
+Asignatura: Desarrollo Backend
+
+Este archivo registra los prompts utilizados como apoyo para el desarrollo. La implementacion fue revisada y adaptada al proyecto Django existente.
+
+## Prompt 1: Modelos y estructura backend
+
+**Rol solicitado a la IA:** Actua como desarrollador senior en Python, Django y Django REST Framework.
+
+**Prompt exacto:**
+
+> Con base en el modelo ER de un sistema de gestion academica, implementa en Django las entidades Teacher (id, first_name, last_name), Course (id, name, teacher_id), Student (id, first_name, last_name) y StudentCourse (student_id, course_id). Course debe tener una clave foranea a Teacher y StudentCourse debe tener claves foraneas a Student y Course con unicidad conjunta. Explica brevemente las decisiones y entrega codigo claro y comentado.
+
+**Respuesta aplicada:**
+
+> Define cuatro modelos Django con `CharField` para nombres, `ForeignKey` para las relaciones y una `UniqueConstraint` sobre `student` y `course`. Usa `on_delete` apropiado y nombres relacionados para facilitar consultas.
+
+## Prompt 2: Serializadores y endpoints
+
+**Rol solicitado a la IA:** Actua como especialista en Django REST Framework.
+
+**Prompt exacto:**
+
+> Crea `ModelSerializer` para Teacher, Course y Student, y un serializador para StudentCourse. En CourseSerializer expone el nombre legible del docente en un campo de solo lectura llamado `teacher_name`. Implementa endpoints de solo lectura con `generics.ListAPIView` para `/api/courses/`, `/api/students/` y `/api/teachers/`.
+
+**Respuesta aplicada:**
+
+> Usa `ModelSerializer` con una lista explicita de campos. Declara `teacher_name` con `source='teacher'` y `read_only=True`, y configura una vista `ListAPIView` por entidad con su queryset y serializador.
+
+## Prompt 3: Interfaz HTML y enmascaramiento de API
+
+**Rol solicitado a la IA:** Actua como desarrollador frontend integrado con Django.
+
+**Prompt exacto:**
+
+> Diseña `base.html`, `courses.html` y `students.html` usando Bootstrap 5 por CDN. Incluye una barra de navegacion con enlaces a Cursos y Estudiantes. Las paginas deben renderizar tablas y usar JavaScript nativo asincrono con `fetch()` para consumir `/api/courses/` y `/api/students/`, pintando las filas dinamicamente. La ruta `/` debe redirigir a `/courses/`.
+
+**Respuesta aplicada:**
+
+> Crea una plantilla base reutilizable con bloques Django y una navegacion Bootstrap. Cada pagina hija inicializa una tabla, consulta el endpoint con `fetch`, procesa el JSON y muestra los resultados o un mensaje de error.
+
+## Prompt 4: Datos de prueba
+
+**Rol solicitado a la IA:** Actua como asistente de datos para una evaluacion Django.
+
+**Prompt exacto:**
+
+> Genera un fixture JSON valido para Django con al menos 3 profesores, 4 cursos y 5 estudiantes del sistema academico, incluyendo algunas inscripciones StudentCourse. Usa relaciones por claves primarias y dejalo listo para ejecutar con `python manage.py loaddata initial_data`.
+
+**Respuesta aplicada:**
+
+> Se genero `academic/fixtures/initial_data.json` con 3 profesores, 4 cursos, 5 estudiantes y 5 inscripciones relacionadas.
