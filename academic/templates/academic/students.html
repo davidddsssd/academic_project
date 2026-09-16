@@ -1,0 +1,127 @@
+{% extends 'academic/base.html' %}
+
+{% block title %}Estudiantes | Gesti&oacute;n Acad&eacute;mica{% endblock %}
+
+{% block content %}
+<section class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <p class="text-success text-uppercase fw-semibold small mb-1">Comunidad estudiantil</p>
+        <h1 class="display-6 fw-bold mb-1">Estudiantes</h1>
+        <p class="text-secondary mb-0">Listado actualizado desde la API acad&eacute;mica.</p>
+    </div>
+    <span class="badge text-bg-success fs-6 px-3 py-2" id="student-count">Cargando...</span>
+</section>
+<div id="student-success" class="alert alert-success d-none" role="alert"></div>
+<div id="student-alert" class="alert alert-danger d-none" role="alert"></div>
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Agregar estudiante</h2>
+        <form id="student-form" class="row g-3">
+            {% csrf_token %}
+            <div class="col-md-5">
+                <label class="form-label" for="student-first-name">Nombre</label>
+                <input class="form-control" id="student-first-name" name="first_name" required maxlength="100">
+            </div>
+            <div class="col-md-5">
+                <label class="form-label" for="student-last-name">Apellido</label>
+                <input class="form-control" id="student-last-name" name="last_name" required maxlength="100">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-success w-100" type="submit">Guardar estudiante</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-success">
+                <tr><th>ID</th><th>Nombre</th><th>Apellido</th><th>Acciones</th></tr>
+            </thead>
+            <tbody id="students-table-body">
+                <tr><td colspan="4" class="text-center py-4">Cargando estudiantes...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+    const studentForm = document.getElementById('student-form');
+    const studentErrorAlert = document.getElementById('student-alert');
+    const studentSuccessAlert = document.getElementById('student-success');
+
+    function getCsrfToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+
+    async function loadStudents() {
+        const studentsTableBody = document.getElementById('students-table-body');
+        try {
+            const apiResponse = await fetch('/api/students/');
+            if (!apiResponse.ok) throw new Error('No fue posible cargar los estudiantes.');
+            const apiData = await apiResponse.json();
+            const studentList = apiData.results || apiData;
+            document.getElementById('student-count').textContent = `${studentList.length} estudiantes`;
+            studentsTableBody.innerHTML = studentList.map(student => `
+                <tr><td>${student.id}</td><td>${student.first_name}</td>
+                <td class="fw-semibold">${student.last_name}</td>
+                <td><button class="btn btn-sm btn-outline-danger delete-student" data-student-id="${student.id}" type="button">Eliminar</button></td></tr>`).join('');
+        } catch (error) {
+            studentErrorAlert.textContent = error.message;
+            studentErrorAlert.classList.remove('d-none');
+            studentsTableBody.innerHTML = '<tr><td colspan="3" class="text-center">No hay datos disponibles.</td></tr>';
+        }
+    }
+
+    document.getElementById('students-table-body').addEventListener('click', async function (event) {
+        if (!event.target.classList.contains('delete-student')) return;
+        if (!confirm('¿Eliminar este estudiante? También se eliminarán sus inscripciones.')) return;
+        try {
+            const apiResponse = await fetch(`/api/students/${event.target.dataset.studentId}/`, {
+                method: 'DELETE',
+                headers: {'X-CSRFToken': getCsrfToken()},
+            });
+            if (!apiResponse.ok) throw new Error('No fue posible eliminar el estudiante.');
+            await loadStudents();
+        } catch (error) {
+            studentErrorAlert.textContent = error.message;
+            studentErrorAlert.classList.remove('d-none');
+        }
+    });
+
+    studentForm.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        studentErrorAlert.classList.add('d-none');
+        studentSuccessAlert.classList.add('d-none');
+
+        const studentData = {
+            first_name: document.getElementById('student-first-name').value.trim(),
+            last_name: document.getElementById('student-last-name').value.trim(),
+        };
+
+        try {
+            const apiResponse = await fetch('/api/students/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify(studentData),
+            });
+            const apiData = await apiResponse.json();
+            if (!apiResponse.ok) {
+                throw new Error(apiData.detail || 'No fue posible guardar el estudiante.');
+            }
+
+            studentForm.reset();
+            studentSuccessAlert.textContent = 'Estudiante agregado correctamente.';
+            studentSuccessAlert.classList.remove('d-none');
+            await loadStudents();
+        } catch (error) {
+            studentErrorAlert.textContent = error.message;
+            studentErrorAlert.classList.remove('d-none');
+        }
+    });
+
+    loadStudents();
+</script>
+{% endblock %}

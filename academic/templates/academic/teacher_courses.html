@@ -1,0 +1,47 @@
+{% extends 'academic/base.html' %}
+
+{% block title %}Cursos de {{ teacher }} | Gesti&oacute;n Acad&eacute;mica{% endblock %}
+
+{% block content %}
+<section class="mb-4">
+    <a class="btn btn-outline-primary btn-sm mb-3" href="{% url 'academic:courses' %}">&larr; Volver a cursos</a>
+    <p class="text-primary text-uppercase fw-semibold small mb-1">Profesor seleccionado</p>
+    <h1 class="display-6 fw-bold mb-1">Cursos de {{ teacher }}</h1>
+    <p class="text-secondary mb-0">Asignaturas impartidas por este profesor.</p>
+</section>
+<div id="teacher-courses-alert" class="alert alert-danger d-none" role="alert"></div>
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-primary">
+                <tr><th>ID</th><th>Asignatura</th><th>Profesor asignado</th></tr>
+            </thead>
+            <tbody id="teacher-courses-table-body">
+                <tr><td colspan="3" class="text-center py-4">Cargando cursos...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+    async function loadTeacherCourses() {
+        const coursesTableBody = document.getElementById('teacher-courses-table-body');
+        const errorAlert = document.getElementById('teacher-courses-alert');
+        try {
+            const apiResponse = await fetch('/api/teachers/{{ teacher.id }}/courses/');
+            if (!apiResponse.ok) throw new Error('No fue posible cargar los cursos.');
+            const apiData = await apiResponse.json();
+            const courseList = apiData.results || apiData;
+            coursesTableBody.innerHTML = courseList.length
+                ? courseList.map(course => `
+                    <tr><td>${course.id}</td><td class="fw-semibold"><a href="/courses/${course.id}/students/" class="link-primary">${course.name}</a></td>
+                    <td>${course.teacher_name}</td></tr>`).join('')
+                : '<tr><td colspan="3" class="text-center py-4">Este profesor no tiene cursos asignados.</td></tr>';
+        } catch (error) {
+            errorAlert.textContent = error.message;
+            errorAlert.classList.remove('d-none');
+            coursesTableBody.innerHTML = '<tr><td colspan="3" class="text-center">No hay datos disponibles.</td></tr>';
+        }
+    }
+    loadTeacherCourses();
+</script>
+{% endblock %}

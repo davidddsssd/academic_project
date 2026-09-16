@@ -1,0 +1,99 @@
+{% extends 'academic/base.html' %}
+
+{% block title %}Estudiantes de {{ course.name }} | Gesti&oacute;n Acad&eacute;mica{% endblock %}
+
+{% block content %}
+<section class="mb-4">
+    <a class="btn btn-outline-primary btn-sm mb-3" href="{% url 'academic:teacher-courses' course.teacher_id %}">&larr; Volver a cursos del profesor</a>
+    <p class="text-primary text-uppercase fw-semibold small mb-1">Curso seleccionado</p>
+    <h1 class="display-6 fw-bold mb-1">Estudiantes de {{ course.name }}</h1>
+    <p class="text-secondary mb-0">Profesor: {{ course.teacher }}</p>
+</section>
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Asignar estudiante al curso</h2>
+        <form id="enrollment-form" class="row g-3">
+            {% csrf_token %}
+            <div class="col-md-10">
+                <label class="form-label" for="student-select">Estudiante</label>
+                <select class="form-select" id="student-select" required><option value="">Cargando estudiantes...</option></select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-success w-100" type="submit">Asignar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div id="enrollment-success" class="alert alert-success d-none" role="alert"></div>
+<div id="enrollment-alert" class="alert alert-danger d-none" role="alert"></div>
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-primary"><tr><th>ID</th><th>Estudiante inscrito</th><th>Acciones</th></tr></thead>
+            <tbody id="enrolled-students-table-body"><tr><td colspan="3" class="text-center py-4">Cargando estudiantes...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+<script>
+    const studentSelect = document.getElementById('student-select');
+    const enrollmentForm = document.getElementById('enrollment-form');
+    const enrolledStudentsTableBody = document.getElementById('enrolled-students-table-body');
+    const enrollmentSuccessAlert = document.getElementById('enrollment-success');
+    const enrollmentErrorAlert = document.getElementById('enrollment-alert');
+
+    async function loadStudentsAndEnrollments() {
+        const [studentsResponse, enrollmentsResponse] = await Promise.all([
+            fetch('/api/students/'),
+            fetch('/api/courses/{{ course.id }}/students/'),
+        ]);
+        const studentsData = await studentsResponse.json();
+        const enrollmentsData = await enrollmentsResponse.json();
+        const studentList = studentsData.results || studentsData;
+        const enrollmentList = enrollmentsData.results || enrollmentsData;
+        const enrolledStudentIds = enrollmentList.map(enrollment => enrollment.student);
+        studentSelect.innerHTML = '<option value="">Selecciona un estudiante</option>'
+            + studentList.filter(student => !enrolledStudentIds.includes(student.id))
+                .map(student => `<option value="${student.id}">${student.first_name} ${student.last_name}</option>`).join('');
+        enrolledStudentsTableBody.innerHTML = enrollmentList.length
+            ? enrollmentList.map(enrollment => `<tr><td>${enrollment.student}</td><td>${enrollment.student_name}</td>
+                <td><button class="btn btn-sm btn-outline-danger delete-enrollment" data-enrollment-id="${enrollment.id}" type="button">Eliminar</button></td></tr>`).join('')
+            : '<tr><td colspan="3" class="text-center py-4">Todavia no hay estudiantes inscritos.</td></tr>';
+    }
+
+    enrolledStudentsTableBody.addEventListener('click', async function (event) {
+        if (!event.target.classList.contains('delete-enrollment')) return;
+        if (!confirm('¿Quitar este estudiante del curso?')) return;
+        try {
+            const apiResponse = await fetch(`/api/courses/{{ course.id }}/students/${event.target.dataset.enrollmentId}/`, {
+                method: 'DELETE',
+                headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
+            });
+            if (!apiResponse.ok) throw new Error('No fue posible quitar la inscripción.');
+            await loadStudentsAndEnrollments();
+        } catch (error) {
+            enrollmentErrorAlert.textContent = error.message;
+            enrollmentErrorAlert.classList.remove('d-none');
+        }
+    });
+
+    enrollmentForm.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        try {
+            const apiResponse = await fetch('/api/courses/{{ course.id }}/students/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
+                body: JSON.stringify({student: studentSelect.value}),
+            });
+            if (!apiResponse.ok) throw new Error('El estudiante ya esta inscrito o no se pudo asignar.');
+            enrollmentSuccessAlert.textContent = 'Estudiante asignado correctamente.';
+            enrollmentSuccessAlert.classList.remove('d-none');
+            await loadStudentsAndEnrollments();
+        } catch (error) {
+            enrollmentErrorAlert.textContent = error.message;
+            enrollmentErrorAlert.classList.remove('d-none');
+        }
+    });
+
+    loadStudentsAndEnrollments();
+</script>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends 'academic/base.html' %}
+
+{% block title %}Profesores | Gesti&oacute;n Acad&eacute;mica{% endblock %}
+
+{% block content %}
+<section class="mb-4">
+    <p class="text-primary text-uppercase fw-semibold small mb-1">Equipo docente</p>
+    <h1 class="display-6 fw-bold mb-1">Profesores</h1>
+    <p class="text-secondary mb-0">Agrega profesores y revisa sus asignaturas.</p>
+</section>
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Agregar profesor</h2>
+        <form id="teacher-form" class="row g-3">
+            {% csrf_token %}
+            <div class="col-md-5">
+                <label class="form-label" for="teacher-first-name">Nombre</label>
+                <input class="form-control" id="teacher-first-name" required maxlength="100">
+            </div>
+            <div class="col-md-5">
+                <label class="form-label" for="teacher-last-name">Apellido</label>
+                <input class="form-control" id="teacher-last-name" required maxlength="100">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" type="submit">Guardar profesor</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div id="teacher-success" class="alert alert-success d-none" role="alert"></div>
+<div id="teacher-alert" class="alert alert-danger d-none" role="alert"></div>
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-primary"><tr><th>ID</th><th>Nombre</th><th>Apellido</th><th>Acciones</th></tr></thead>
+            <tbody id="teachers-table-body"><tr><td colspan="4" class="text-center py-4">Cargando profesores...</td></tr></tbody>
+        </table>
+    </div>
+</div>
+<script>
+    const teacherForm = document.getElementById('teacher-form');
+    const teachersTableBody = document.getElementById('teachers-table-body');
+    const teacherSuccessAlert = document.getElementById('teacher-success');
+    const teacherErrorAlert = document.getElementById('teacher-alert');
+
+    async function loadTeachers() {
+        const apiResponse = await fetch('/api/teachers/');
+        const apiData = await apiResponse.json();
+        const teacherList = apiData.results || apiData;
+        teachersTableBody.innerHTML = teacherList.map(teacher => `
+            <tr><td>${teacher.id}</td><td>${teacher.first_name}</td><td>${teacher.last_name}</td>
+            <td><button class="btn btn-sm btn-outline-danger delete-teacher" data-teacher-id="${teacher.id}" type="button">Eliminar</button></td></tr>`).join('');
+    }
+
+    teachersTableBody.addEventListener('click', async function (event) {
+        if (!event.target.classList.contains('delete-teacher')) return;
+        if (!confirm('¿Eliminar este profesor? Solo podrá eliminarse si no tiene cursos asignados.')) return;
+        try {
+            const apiResponse = await fetch(`/api/teachers/${event.target.dataset.teacherId}/`, {
+                method: 'DELETE',
+                headers: {'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
+            });
+            if (!apiResponse.ok) throw new Error('No fue posible eliminar el profesor. Puede tener cursos asignados.');
+            await loadTeachers();
+        } catch (error) {
+            teacherErrorAlert.textContent = error.message;
+            teacherErrorAlert.classList.remove('d-none');
+        }
+    });
+
+    teacherForm.addEventListener('submit', async function (event) {
+        event.preventDefault();
+        try {
+            const apiResponse = await fetch('/api/teachers/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value},
+                body: JSON.stringify({
+                    first_name: document.getElementById('teacher-first-name').value.trim(),
+                    last_name: document.getElementById('teacher-last-name').value.trim(),
+                }),
+            });
+            if (!apiResponse.ok) throw new Error('No fue posible guardar el profesor.');
+            teacherForm.reset();
+            teacherSuccessAlert.textContent = 'Profesor agregado correctamente.';
+            teacherSuccessAlert.classList.remove('d-none');
+            await loadTeachers();
+        } catch (error) {
+            teacherErrorAlert.textContent = error.message;
+            teacherErrorAlert.classList.remove('d-none');
+        }
+    });
+
+    loadTeachers();
+</script>
+{% endblock %}
